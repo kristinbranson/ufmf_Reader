@@ -1,38 +1,94 @@
-package ufmf;
+package read_ufmf;
 
-import java.io.File;
-import java.io.IOException;
-import java.awt.image.BufferedImage;
+import java.io.*;
 
-import javax.imageio.ImageIO;
+import read_ufmf.UfmfFile.MeanFrame;
+import ij.io.OpenDialog;
+import ij.ImageJ;
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.plugin.PlugIn;
+import ij.process.ImageProcessor;
+import ij.process.FloatProcessor;
+import ij.IJ;
 
-import ufmf.UfmfFile.Frame;
-import ufmf.UfmfFile.MeanFrame;
+//public class ufmf_Reader {
+public class ufmf_Reader implements PlugIn {
 
-public class ufmf_Reader {
+	private String path;
+	private String fileName;
+	private String fileDir;
+	
+	public void run(String arg) {
 
-	public static void main(String args[]) throws IOException {
+		getPath(arg);
+		if (null == path) {
+			return;
+		}
 
-		String path = "/Users/edwardsa/workspace/ufmf/movie.ufmf";
-		UfmfFile raf = new UfmfFile(path,"r");
-		raf.header = raf.readFileHeader();
-		MeanFrame[] meanframes = raf.readAllMeans(raf.header);
-		int i = 13047;
-		Frame frame = raf.getFrame(raf.header,i);
-		frame.readFrame(raf.header, meanframes);
-
-			BufferedImage theImage = new BufferedImage(1024, 1024, BufferedImage.TYPE_INT_RGB);
+		try {
+			UfmfFile raf = new UfmfFile(path,"r");
+			raf.parse();
+			MeanFrame[] MeanFrames = raf.readAllMeans(raf.header);
+			int depth = raf.header.nframes;
+			ImageStack stack = new ImageStack(raf.header.max_width, raf.header.max_height);
+			ImageProcessor ip = null;
 			
-			for(int y = 0; y<1024; y++){
-				for(int x = 0; x<1024; x++){
-					
-					int value = (int) frame.img[y][x] << 16 | (int) frame.img[y][x] << 8 | (int) frame.img[y][x];
-						theImage.setRGB(x, y, value);
-				}
+			
+	
+			for (int z = 1000; z < 1020; z++) {
+				
+				float[][] slice = new float[raf.header.max_height][raf.header.max_width];
+				slice = raf.getFrame(raf.header, z, MeanFrames).img;
+				
+				ip = new FloatProcessor(slice);
+			
+				IJ.showProgress( z, depth );
+				IJ.showStatus( "Reading: " + z + "/" + depth );
+				stack.addSlice( null, ip );
 			}
+			
+			ImagePlus imp = new ImagePlus( fileName.replaceAll( ".ufmf$", "" ), stack );
+			imp.setDisplayRange(0.0,255.0 );
+			imp.show();
+			
+		} catch ( Exception e )
+		{
+			System.out.println(e.getMessage());
+			IJ.error( "Opening ufmf failed.\n" + e.getMessage() );
+		}
+		
+		
+	}
+	
+	private String getPath(String arg) {
+		if (null != arg) {
+			if (0 == arg.indexOf("http://") || new File(arg).exists()) {
+				return arg;
+			}
+		}
+		
+		OpenDialog od = new OpenDialog("Choose a .ufmf file", null);
+		String dir = od.getDirectory();
+		if (null == dir) return null;
+		dir = dir.replace('\\', '/'); // for Windows
+		if (!dir.endsWith("/")) dir += "/";
+		fileName = od.getFileName();
+		fileDir = dir;
+		path = fileDir + fileName;
+		return path;
+	}
+	
+	public static void main(String[] args) {
+        // set the plugins.dir property to make the plugin appear in the Plugins menu
+        Class<?> plugin_class = ufmf_Reader.class;
+        String url = plugin_class.getResource("/" + plugin_class.getName().replace('.', '/') + ".class").toString();
+        String pluginsDir = url.substring(5, url.length() - plugin_class.getName().length() - 6);
+        System.setProperty("plugins.dir", pluginsDir);
 
-			String outputfilename = "frame" + String.valueOf(i)+".bmp";
-			File outputfile = new File(outputfilename);
-			ImageIO.write(theImage, "png", outputfile);
-	}	
+        // start ImageJ
+        new ImageJ();
+        // run the plugin
+        IJ.runPlugIn(plugin_class.getName(), "");
+	}
 }

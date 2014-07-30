@@ -1,4 +1,4 @@
-package ufmf;
+package read_ufmf;
 
 class UfmfHeader {
 

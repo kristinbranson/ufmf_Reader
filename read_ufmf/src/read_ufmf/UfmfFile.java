@@ -1,4 +1,4 @@
-package ufmf;
+package read_ufmf;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -18,6 +18,14 @@ public class UfmfFile extends RandomAccessFile {
 		super(location, mode);
 		order (LITTLE_ENDIAN);
 	}
+	
+	public void parse() throws IOException{
+        //stackLocations = new ArrayList<ImageStackLocator>();
+        seek(0);
+        header = readFileHeader();
+        int frame = 0;
+        
+    }
 
 	public UfmfHeader readFileHeader() throws IOException {
 		
@@ -460,18 +468,18 @@ public class UfmfFile extends RandomAccessFile {
 		public double timestamp;
 		private int[] data;
 		
-		public Frame(UfmfHeader header, int i) {
+		public Frame(UfmfHeader header, int i, MeanFrame[] MeanFrame) throws IOException {
 			
 			this.ncolors = header.ncolors;
 			this.maxh = header.max_height;
 			this.maxw = header.max_width;
 			this.framei = i;
+			this.readFrame(header, MeanFrame);
 		}
 		
 		public void readFrame(UfmfHeader header, MeanFrame[] MeanFrame) throws IOException {
 			
 			int meani = header.frame2mean[this.framei];
-			System.out.println(MeanFrame.length);
 			meanframe = MeanFrame[meani];
 			
 			img = meanframe.img;
@@ -606,9 +614,9 @@ public class UfmfFile extends RandomAccessFile {
 
 	
 }
-	public Frame getFrame(UfmfHeader header, int i) throws IOException{
-		
-		Frame frame = new Frame(header, i);
+	public Frame getFrame(UfmfHeader header, int i, MeanFrame[] MeanFrames) throws IOException{
+		System.out.println(i);
+		Frame frame = new Frame(header, i, MeanFrames);
 		return frame;
 	}
 
