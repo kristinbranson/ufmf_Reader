@@ -11,51 +11,60 @@ import java.io.IOException;
 import ucar.unidata.io.RandomAccessFile;
 
 
+/**
+ * Contains metadata for image from UFMF file, and provides methods to convert from
+ * 	UFMF image to ImageProcessor
+ * 
+ * @author Austin Edwards
+ * @version 1.0
+ * 
+ */
+
 @SuppressWarnings("unused")
 public class IplImageHeader {
 	
 	/**
-	 * binary indicating the type of data to be read
+	 * Binary indicating the type of data to be read
 	 */
 	private int chunktype;
 	
 	/**
-	 * length of string indicating type of frame being restored
+	 * Length of string indicating type of frame being restored
 	 */
 	private int l;
 	
 	/**
-	 * string indicating type of frame being restored (ex: 'mean')
+	 * String indicating type of frame being restored (ex: 'mean')
 	 */
 	
-	private String keyframetype;
+	private String frametype;
 	
 	/**
-	 * image width in pixels
+	 * Image width in pixels
 	 */
 	private int width; 
 	
 	/**
-	 * image height in pixels
+	 * Image height in pixels
 	 */
 	private int height;
 	
 	/**
-	 * type of data to be read
+	 * Type of data to be read
 	 */
 	private String datatype;
 	
 	/**
-	 * timestamp
+	 * Timestamp for frame 
 	 */
 	private double timestamp;
 	
 	/**
+	 * Creates IplImageHeader from the UFMF file at the current file pointer location
 	 * 
-	 * @param raf
+	 * @param raf			UFMF File
 	 * @throws IOException
 	 */
-	
 	
 	public IplImageHeader(RandomAccessFile raf) throws IOException{
 		long pos = raf.getFilePointer();
@@ -74,7 +83,7 @@ public class IplImageHeader {
 			c = (char) raf.readUnsignedByte();
 			s.append(c); // should spell 'mean'
 		}
-		keyframetype = s.toString();
+		frametype = s.toString();
 		
 		datatype = Character.toString((char) raf.read());
 		String[] javaclass = {null,null};
@@ -96,6 +105,13 @@ public class IplImageHeader {
 		
 	}
 	
+	/**
+	 * Returns metadata for image
+	 * 
+	 * @return metadata for image
+	 * @throws IOException
+	 */
+	
 	public FileInfo getFileInfo() throws IOException {
 		
 		int bytesPerPixel = 1;
@@ -109,6 +125,13 @@ public class IplImageHeader {
 		
 	}
 	
+	/**
+	 * Reads image data from the UFMF file and returns it as an ImageProcessor
+	 * 
+	 * @param raf	UFMF file
+	 * @return ImageProcessor containing image data read from UFMF File
+	 * @throws IOException
+	 */
 	public ImageProcessor getImageData(RandomAccessFile raf) throws IOException {
 		
 		FileInfo fi = getFileInfo();
@@ -124,8 +147,8 @@ public class IplImageHeader {
 	 /**
      * Reads and returns an ImageProcessor of the image at the location of the current file pointer in the UFMF
      * 
-     * @param raf The UFMF file
-     * @return An ImageProcessor of the image at the location of the current file pointer in the UFMF
+     * @param raf 	The UFMF file
+     * @return ImageProcessor of the image at the location of the current file pointer in the UFMF
      * @throws IOException
      */
     public static ImageProcessor loadIplImage (RandomAccessFile raf) throws IOException {

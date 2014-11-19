@@ -1,21 +1,29 @@
 package read_ufmf;
 
-import read_ufmf.UfmfFile;
-
+/**
+ * The main header for the UFMF file
+ * 
+ * @author Austin Edwards
+ * @version 1.0
+ * @see UfmfFile
+ *
+ */
 class UfmfHeader {
 
 	//public int MAXNMEANSCACHED = 5;
 	
-	public String s; //"ufmf"
-	public int ver; //version number
-	public long indexloc; //byte location of index
+	public long pos;
+	
+	public String s;
+	public int ver;
+	public long indexloc;
 	
 	public int max_height;
 	public int max_width;
 	
 	public int isfixedsize;
 	
-	public String coding; //only mono and rgb supported currently
+	public String coding;
 	public int ncolors;
 	public int bytes_per_pixel;
 	
@@ -42,12 +50,13 @@ class UfmfHeader {
 	
 	public String movie;
 	
-	public UfmfHeader(String s, int ver, long indexloc, int max_height, int max_width, int isfixedsize,
+	public UfmfHeader(long pos, String s, int ver, long indexloc, int max_height, int max_width, int isfixedsize,
 			String coding, int ncolors, int bytes_per_pixel, long[] frame2file, int nframes,
 			double[] timestamps, long[] mean2file, int nmeans, int[] framespermean, double[] meantimestamps, int[] frame2mean,
 			long[] frame2meanloc, int nr, int nc) {
 		super();
 		
+		this.pos = pos;
 		this.s = s;
 		this.ver = ver;
 		this.indexloc = indexloc;

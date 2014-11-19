@@ -2,12 +2,10 @@ package read_ufmf;
 
 import ij.IJ;
 import ij.io.FileInfo;
-import ij.io.ImageReader;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 
 import java.awt.Rectangle;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,8 +29,8 @@ public class UfmfFile extends RandomAccessFile {
 	 * Main UFMF header
 	 */
 	private UfmfHeader header;
-	public FrameIndex frameindex = new FrameIndex();
-	public KeyFrameIndex keyframeindex = new KeyFrameIndex();
+	public FrameIndex frameindex;
+	public KeyFrameIndex keyframeindex;
 	
 	/**
 	 * Index of UFMF ImageStacks within UFMF file
@@ -240,7 +238,7 @@ public class UfmfFile extends RandomAccessFile {
 		}
 		
 		
-		return new UfmfHeader(s.toString(), ver, indexloc, max_height, max_width, isfixedsize,
+		return new UfmfHeader(pos, s.toString(), ver, indexloc, max_height, max_width, isfixedsize,
 			coding, ncolors, bytes_per_pixel, frame2file, nframes, timestamps,
 			mean2file, nmeans, framespermean, meantimestamps, frame2mean, frame2meanloc, nr, nc);
 		
@@ -283,241 +281,24 @@ public class UfmfFile extends RandomAccessFile {
 				unread();
 				
 				if (key.trim().equals("frame")) {
-					
-					frameindex.readFrameDict();
-					
+					frameindex = new FrameIndex(this);
 				}
 				
 				else if (key.trim().equals("keyframe")){
-
-					keyframeindex.readKeyFrameDict();
-					
+					keyframeindex = new KeyFrameIndex(this);
 				}
 			}
-			
-		}
-			
-	}
-	
-	/**
-	 * Frame index class
-	 * 
-	 */
-	
-	public class FrameIndex {
-
-		public long[] loc;
-		public double[] timestamp;
-		private String DICT_START_CHAR = "d";
-		private String ARRAY_START_CHAR = "a";
-		public String key;
-		
-		public void readFrameDict() throws IOException {
-				
-				String chunktype = Character.toString((char)read());
-				
-				if (!chunktype.trim().equals(DICT_START_CHAR)){
-					System.out.printf("Error reading index: dictionary does not start with '%s'.", DICT_START_CHAR);
-					}
-				
-				// get number of keys in frames
-				
-				int nkeys = read();
-				
-				for (int j = 0; j < nkeys; j++) {
-					
-					byte[] buf = new byte[24];
-					//read length of key
-					int l = read();
-
-					//read key
-					
-					read(buf,0,l+1);
-					key = new String(buf,"UTF-8");
-					
-					//read chunktype
-					chunktype = Character.toString((char)read());
-					
-					if (chunktype.trim().equals(ARRAY_START_CHAR)){
-						
-						char dtype = (char)read();
-						String[] javaclass = dtypechar2javaclass(dtype);
-						
-				// get total number of bytes
-						long numbytes = readInt() & 0xFFFFFFFFL;
-						
-				// get number of bytes per element of datatype "javaclass"
-						int bytesperelement = Integer.parseInt(javaclass[1]);
-						
-				// get number of elements to read, each having number of bytes "bytesperelement"
-						int n = (int) (numbytes/bytesperelement);
-						
-				// initialize size of loc and timestamp arrays		
-						switch(dtype) {
-							case 'q': loc = new long[n];
-							case 'd': timestamp = new double[n];
-						}
-						
-				// read in index		
-						
-						if (dtype == 'q') {
-							byte[] longbuf = new byte[(int) numbytes];
-							read(longbuf);
-							for(int i = 0; i < numbytes; i+=bytesperelement) {
-								loc[(i/bytesperelement)] = readUnsignedLongLittleEndian(longbuf,i);	
-							}	
-						}
-						else if (dtype == 'd') {
-							for(int i = 0; i < numbytes; i+=bytesperelement) {
-								double k = readDouble();
-								timestamp[(i/bytesperelement)] = k;
-							}
-						}
-					}
-				}
-		}
-		
-		/**
-		 * Reads unsigned long values little endian
-		 * 
-		 * @param buf
-		 * @param start
-		 * @return
-		 */
-		
-		private long readUnsignedLongLittleEndian(byte[] buf, int start) {
-
-			return (long)(buf[start+7] & 0xff) << 56 | (long)(buf[start+6] & 0xff) << 48 |
-					(long)(buf[start+5] & 0xff) << 40 | (long)(buf[start+4] & 0xff) << 32 |
-					(long)(buf[start+3] & 0xff) << 24 | (long)(buf[start+2] & 0xff) << 16 |
-					(long)(buf[start+1] & 0xff) <<  8 | (long)(buf[start] & 0xff);
-				}
-		
-		/**
-		 * Translates encoded data type to Java data type
-		 * 
-		 * @param dtype
-		 * @return String array containing two elements: data type and bytes per pixel
-		 */
-
-		private String[] dtypechar2javaclass(char dtype) {
-		
-			String javaclass[] = {null,null};
-		
-		
-				switch(dtype) {
-			
-				case 'c':
-				case 's':
-				case 'p':	
-					javaclass[0] = "char";
-					javaclass[1] = "1";
-					break;
-				case 'b':
-					javaclass[0] = "int8";
-					javaclass[1] = "1";
-					break;
-				case 'B':
-					javaclass[0] = "uint8";
-					javaclass[1] = "1";
-					break;
-				case 'h':
-					javaclass[0] = "int16";
-					javaclass[1] = "2";
-					break;
-				case 'H':
-					javaclass[0] = "uint16";
-					javaclass[1] = "2";
-					break;
-				case 'i':
-				case 'l':
-					javaclass[0] = "int32";
-					javaclass[1] = "4";
-					break;
-				case 'I':
-				case 'L':
-					javaclass[0] = "uint32";
-					javaclass[1] = "4";
-					break;
-				case 'q':
-					javaclass[0] = "int64";
-					javaclass[1] = "8";
-					break;
-				case 'Q':
-					javaclass[0] = "uint64";
-					javaclass[1] = "8";
-					break;
-				case 'f':
-					javaclass[0] = "float";
-					javaclass[1] = "4";
-					break;
-				case 'd':
-					javaclass[0] = "double";
-					javaclass[1] = "8";
-					break;
-				default:
-					System.err.printf("Unknown data type %s", dtype);
-				}
-				return javaclass;
-		}
-		
-	}
-	
-	/**
-	 * Keyframe index class
-	 */
-	
-	public class KeyFrameIndex {
-
-		private String DICT_START_CHAR = "d";
-		private byte[] buf = new byte[1024];
-		
-		public FrameIndex meanindex = new FrameIndex();
-		
-		public void readKeyFrameDict() throws IOException {
-				
-				String chunktype = Character.toString((char)read());
-				
-				if (!chunktype.trim().equals(DICT_START_CHAR)){
-					System.out.printf("Error reading index: dictionary does not start with '%s'.", DICT_START_CHAR);
-					}
-				
-				// get number of keys in frames
-				int nkeys = read();
-				
-				for (int j = 0; j < nkeys; j++) {
-					
-					//read length of key
-					int l = read();
-					
-					//read key
-					read(buf,0,l+1);
-					String key = new String(buf,"UTF-8");
-					
-					//read chunktype
-					chunktype = Character.toString((char)read());
-					
-					if (chunktype.trim().equals(DICT_START_CHAR)){
-						
-						unread();
-						
-						if (key.trim().equals("mean")) {
-							meanindex.readFrameDict();
-						
-						}
-					}
-				}
 		}
 	}
 	
 	/**
-	 * Returns Stack containing queried frame
+	 * Returns stack containing frame
 	 * 
 	 * @param frameNumber
-	 * @return CommonBackgroundStack containing queried frame
+	 * @return CommonKeyFrameStack containing frame
 	 */
 	
-	public CommonBackgroundStack getStackForFrame (int frameNumber) {
+	public CommonKeyFrameStack getStackForFrame (int frameNumber) {
 		
 		if (frameNumber <0 || frameNumber > getNumFrames()) {
 			IJ.showMessage("UfmfReader", "FrameIndexError; UfmfFile");
@@ -528,9 +309,9 @@ public class UfmfFile extends RandomAccessFile {
 		ImageStackLocator isl = findStackLocForFrame(frameNumber);
 		
 		//read stack from file
-		CommonBackgroundStack stack = null;
+		CommonKeyFrameStack stack = null;
 		try {
-			stack = new CommonBackgroundStack(isl, this);
+			stack = new CommonKeyFrameStack(isl, this);
 			
 		} catch (IOException e) {
 			IJ.showMessage("UfmfReader",
@@ -542,10 +323,9 @@ public class UfmfFile extends RandomAccessFile {
 	}
 	
 	/**
-	 * Retrieve ImageStackLocator with location and other info about stack containing
-	 *   queried frame
+	 * Retrieve ImageStackLocator with location and other info about stack containing frame
 	 * 
-	 * @param frameNumber	queried frame 
+	 * @param frameNumber		frame 
 	 * @return ImageStackLocator containing frame
 	 */
 	
@@ -571,33 +351,45 @@ public class UfmfFile extends RandomAccessFile {
 	}
 	
 	/**
+	 * Processes data for a frame image, converting it to a FrameImage object
 	 * 
-	 * 
-	 * @param bak
-	 * @param backgroundFileInfo
+	 * @param frameImage
+	 * @param keyframeFileInfo
 	 * @return
 	 * @throws IOException
 	 */
 	
-	BackgroundRemovedImage readBRI(ImageProcessor bak, FileInfo backgroundFileInfo) throws IOException {
+	FrameImage readFrameImage(ImageProcessor frameImage, FileInfo frameFileInfo) throws IOException {
 		
-		BackgroundRemovedImageHeader h = new BackgroundRemovedImageHeader(this);
-		BackgroundRemovedImage bri = new BackgroundRemovedImage(h, bak);
+		FrameImageHeader h = new FrameImageHeader(this);
+		FrameImage frameimage = new FrameImage(h, frameImage);
 		for (int j = 0; j<h.getNumimgs(); j++) {
-			bri.addSubImage(readBRISubIm(bak, backgroundFileInfo));
+			frameimage.addSubImage(readFrameSubIm(frameImage, frameFileInfo));
 		}
-		return bri;
+		return frameimage;
 	}
 	
-	private BRISubImage readBRISubIm(ImageProcessor bak, FileInfo backgroundFileInfo) throws IOException {
+	/**
+	 * Processes and returns subimage for a frame
+	 * 
+	 * @param frameImage
+	 * @param frameFileInfo
+	 * @return
+	 * @throws IOException
+	 */
+	
+	private FrameSubImage readFrameSubIm(ImageProcessor frameImage, FileInfo frameFileInfo) throws IOException {
+		
 		Rectangle r = new Rectangle();
+		
+		// reads coordinates of subimage
 		
 		r.x = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
 		r.y = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
 		r.width = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
 		r.height = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
 		
-		FileInfo fi = (FileInfo) backgroundFileInfo.clone();
+		FileInfo fi = (FileInfo) frameFileInfo.clone();
 		
 		fi.width = r.width;
 		fi.height = r.height;
@@ -607,11 +399,17 @@ public class UfmfFile extends RandomAccessFile {
 		
 		FloatProcessor ip = new FloatProcessor(r.width, r.height, ubuf);
 		
-		
-		return new BRISubImage(ip,r);
+		return new FrameSubImage(ip,r);
 		
 	}
 
+	/**
+	 * Reads unsigned float array
+	 * 
+	 * @param buf	byte array to be read, translated to float array
+	 * @return 		array of unsigned floats
+	 * @throws IOException
+	 */
 	private float[] readByteToUnsignedFloat(byte[] buf) throws IOException {
 		
 		float[] ubuf = new float[buf.length];

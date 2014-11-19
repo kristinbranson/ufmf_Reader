@@ -3,17 +3,37 @@ package read_ufmf;
 import java.io.IOException;
 import ucar.unidata.io.RandomAccessFile;
 
-/**
- * Keyframe index class
- */
 
+/**
+ * Index object for keyframe
+ * 
+ * @author Austin Edwards
+ * @version 1.0
+ * @see FrameIndex 
+ */
 public class KeyFrameIndex {
 
+	/**
+	 * String idcode for indicating beginning of dictionary
+	 */
 	private String DICT_START_CHAR = "d";
+	
+	/**
+	 * Byte buffer for reading keys
+	 */
 	private byte[] buf = new byte[1024];
 	
+	/**
+	 * Frame index
+	 */
 	public FrameIndex meanindex;
 	
+	/**
+	 * Constructs keyframe index from UFMF file
+	 * 
+	 * @param raf	UFMF file
+	 * @throws IOException
+	 */
 	public KeyFrameIndex(RandomAccessFile raf) throws IOException {
 			
 			String chunktype = Character.toString((char) raf.read());

@@ -6,19 +6,44 @@ import java.io.IOException;
 
 
 /**
+ * Index object for frame
  * 
- * 
- * @author edwardsa
+ * @author Austin Edwards
  *
  */
 public class FrameIndex {
 
+	/**
+	 * Locations of all frames in file
+	 */
 	public long[] loc;
+	
+	/**
+	 * Timestamps for all frames in file
+	 */
 	public double[] timestamp;
+	
+	/**
+	 * ID code for beginning of dictionary in file
+	 */
 	private String DICT_START_CHAR = "d";
+	
+	/**
+	 * ID code for beginning of array in file
+	 */
 	private String ARRAY_START_CHAR = "a";
+	
+	/**
+	 * Dictionary key, either 'keyframe' or 'frame'
+	 */
 	public String key;
 	
+	/**
+	 * Constructs a frame index object
+	 * 
+	 * @param raf
+	 * @throws IOException
+	 */
 	public FrameIndex(RandomAccessFile raf) throws IOException {
 			
 			String chunktype = Character.toString((char) raf.read());
@@ -28,7 +53,6 @@ public class FrameIndex {
 				}
 			
 			// get number of keys in frames
-			
 			int nkeys = raf.read();
 			
 			for (int j = 0; j < nkeys; j++) {
@@ -83,7 +107,14 @@ public class FrameIndex {
 				}
 			}
 	}
-			
+	
+	/**
+	 * Reads a byte array as unsigned little endian long number
+	 * 
+	 * @param buf
+	 * @param start
+	 * @return
+	 */
 	private long readUnsignedLongLittleEndian(byte[] buf, int start) {
 
 		return (long)(buf[start+7] & 0xff) << 56 | (long)(buf[start+6] & 0xff) << 48 |
