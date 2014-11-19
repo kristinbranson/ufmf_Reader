@@ -1,8 +1,10 @@
 package read_ufmf;
 
+import read_ufmf.UfmfFile;
+
 class UfmfHeader {
 
-	public int MAXNMEANSCACHED = 5;
+	//public int MAXNMEANSCACHED = 5;
 	
 	public String s; //"ufmf"
 	public int ver; //version number
@@ -25,6 +27,7 @@ class UfmfHeader {
 	
 	public long[] mean2file;
 	public int nmeans;
+	public int[] framespermean;
 	public double[] meantimestamps;
 	
 	public int[] frame2mean;
@@ -36,14 +39,13 @@ class UfmfHeader {
 	public int[] cachedmeans_idx;
 	
 	public int nmeanscached;
-	public UfmfFile.MeanFrame[] allMeanFrames;
 	
 	public String movie;
 	
 	public UfmfHeader(String s, int ver, long indexloc, int max_height, int max_width, int isfixedsize,
 			String coding, int ncolors, int bytes_per_pixel, long[] frame2file, int nframes,
-			double[] timestamps, long[] mean2file, int nmeans, double[] meantimestamps, int[] frame2mean,
-			long[] frame2meanloc, int nr, int nc, int nmeanscached) {
+			double[] timestamps, long[] mean2file, int nmeans, int[] framespermean, double[] meantimestamps, int[] frame2mean,
+			long[] frame2meanloc, int nr, int nc) {
 		super();
 		
 		this.s = s;
@@ -61,12 +63,12 @@ class UfmfHeader {
 		this.timestamps = timestamps;
 		this.mean2file = mean2file;
 		this.nmeans = nmeans;
+		this.framespermean = framespermean;
 		this.meantimestamps = meantimestamps;
 		this.frame2mean = frame2mean;
 		this.frame2meanloc = frame2meanloc;
 		this.nr = nr;
 		this.nc = nc;
-		this.nmeanscached = nmeanscached;
 		
 	}
 

@@ -1,44 +1,171 @@
 package read_ufmf;
 
+import ij.IJ;
+import ij.io.FileInfo;
+import ij.io.ImageReader;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+
+import java.awt.Rectangle;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Arrays;
 
+import read_ufmf.UfmfHeader;
 import ucar.unidata.io.RandomAccessFile;
 
+/**
+ * An implementation RandomAccessFile for reading UFMF files.
+ * 
+ * 
+ * @author Austin Edwards
+ * @see RandomAccessFile
+ * @see ImageStackLocator
+ * 
+ */
+
 public class UfmfFile extends RandomAccessFile {
-	
-	public UfmfHeader header;
+
+	/**
+	 * Main UFMF header
+	 */
+	private UfmfHeader header;
 	public FrameIndex frameindex = new FrameIndex();
 	public KeyFrameIndex keyframeindex = new KeyFrameIndex();
-
 	
+	/**
+	 * Index of UFMF ImageStacks within UFMF file
+	 */
+	private ArrayList<ImageStackLocator> stackLocations;
+	private boolean parsed = false;
+	
+	/**
+	 * Returns number of UFMF ImageStacks
+	 * @return Number of UFMF ImageStacks
+	 */
+	public int getNumStacks() {
+		return stackLocations.size();
+	}
+	
+	/**
+	 * Returns main UFMF header
+	 * @return UFMF header
+	 */
+	public UfmfHeader getHeader() {
+		if (!parsed) {
+			try {
+				parse();
+			} catch (IOException e) {
+				return null;
+			}
+		}
+		return header;
+	}
+	
+	/**
+	 * Returns total number of frames in the UFMF movie
+	 * @return total number of frames in movie
+	 */
+	public int getNumFrames(){
+		if (!parsed) {
+			try {
+				parse();
+			} catch (IOException e) {
+				return -1;
+			}
+		}
+		return stackLocations.get(stackLocations.size()-1).getLastFrame() -
+				stackLocations.get(0).getStartFrame() + 1;
+	}
+	
+	/**
+	 * Reads main UFMF header, including keyframe locations
+	 * @throws IOException
+	 */
+	public void parse() throws IOException {
+		stackLocations = new ArrayList<ImageStackLocator>();
+		seek(0);
+		header = readFileHeader();
+		int frame = 0;
+		
+		for (int i = 0; i < header.nmeans; i++) {
+			ImageStackHeader h = readImageStackHeader(i);
+			stackLocations.add(new ImageStackLocator(h, frame));
+			frame += h.nframes;	
+		}
+		parsed = true;
+	}
+	
+	
+
+	/**
+	 * Creates an UFMF file.
+	 * 
+	 * @param location		Location of the file
+	 * @param mode			Access mode, either: r, rw, rws, or rwd
+	 * @param bufferSize	Size of buffer
+	 * @throws IOException
+	 */
+	public UfmfFile(String location, String mode, int bufferSize) throws IOException {
+		super(location, mode, bufferSize);
+		order (LITTLE_ENDIAN);
+	}
+
+	/**
+	 * Creates an UFMF file.
+	 * 
+	 * @param bufferSize	Size of buffer
+	 */
+	public UfmfFile(int bufferSize) {
+		super(bufferSize);
+		order (LITTLE_ENDIAN);
+	}
+
+	/**
+	 * Creates an UFMF file.
+	 * 
+	 * @param location		Location of the file
+	 * @param mode			Access mode, either: r, rw, rws, or rwd
+	 * @throws IOException
+	 */
 	public UfmfFile(String location, String mode) throws IOException {
 		super(location, mode);
 		order (LITTLE_ENDIAN);
 	}
 	
-	public void parse() throws IOException{
-        //stackLocations = new ArrayList<ImageStackLocator>();
-        seek(0);
-        header = readFileHeader();
-        int frame = 0;
-        
-    }
-
-	public UfmfHeader readFileHeader() throws IOException {
+	/**
+	 * Copies keyframe stack info from main header into keyframe headers
+	 * 
+	 * @param i					
+	 * @return ImageStackHeader Header for each keyframe stack
+	 */
+	private ImageStackHeader readImageStackHeader(int i) {
 		
-		int maxnmeanscached = 5;
+		int nframes = header.framespermean[i];
+		long loc = header.mean2file[i];
+		return new ImageStackHeader( nframes, loc);
+	}
+	
+	/**
+	 * Processes (and returns) the main UFMF header, positioning the file pointer at the beginning of the first ImageStack.
+	 * 
+	 * @return The main MMF header
+	 * @throws IOException
+	 */
+	
+	public UfmfHeader readFileHeader() throws IOException{
+		long pos = getFilePointer();
+		StringBuilder s = new StringBuilder();
+		char c;
 		
-		byte[] buf = new byte[1024];
-		
-		read(buf, 0, 4);
-		String s = new String(buf,"UTF-8");
+		for (int i = 0; i < 4; i++) {
+			c = (char) readUnsignedByte();
+			s.append(c); // should spell 'ufmf'
+		}
 		
 		int ver = readInt();
 		long indexloc = readLong();
-		
 		int max_height = readShort();
 		int max_width = readShort();
 		
@@ -46,11 +173,14 @@ public class UfmfFile extends RandomAccessFile {
 		
 		int l = read();
 		
-		read(buf,4,l);
-		byte [] codingBytes = Arrays.copyOfRange(buf, 4, 4+l);
-		String coding = new String(codingBytes,"UTF-8");
+		StringBuilder codingStringBuilder = new StringBuilder();
 		
-		coding = coding.toLowerCase();
+		for (int i = 0; i < l; i++) {
+			c = (char) readUnsignedByte();
+			codingStringBuilder.append(c); // should spell 'ufmf'
+		}
+		
+		String coding = codingStringBuilder.toString().toLowerCase();
 		
 		int ncolors = 0;
 		int bytes_per_pixel = 0; 
@@ -74,6 +204,7 @@ public class UfmfFile extends RandomAccessFile {
 		
 		long[] mean2file;
 		int nmeans;
+		int[] framespermean;
 		double[] meantimestamps;
 		
 		int[] frame2mean;
@@ -94,27 +225,32 @@ public class UfmfFile extends RandomAccessFile {
 		Arrays.fill(frame2mean, nmeans-1);
 		
 		frame2meanloc = new long[nframes];
+		framespermean = new int[nmeans];
 		
 		for (int j = 0; j < timestamps.length; j++){
 			for (int i = 0; i < nmeans-1; i++){
 				
 				if ((timestamps[j] >= meantimestamps[i]) & (timestamps[j] < meantimestamps[i+1])) {	
 					frame2mean[j] = i;
+					framespermean[i]++;
 				}
 				
 			}
 			frame2meanloc[j] = mean2file[frame2mean[j]];
 		}
 		
-		int nmeanscached = Math.min(maxnmeanscached, nmeans);
 		
-		
-		return new UfmfHeader(s, ver, indexloc, max_height, max_width, isfixedsize,
+		return new UfmfHeader(s.toString(), ver, indexloc, max_height, max_width, isfixedsize,
 			coding, ncolors, bytes_per_pixel, frame2file, nframes, timestamps,
-			mean2file, nmeans, meantimestamps, frame2mean, frame2meanloc, nr, nc,
-			nmeanscached);
+			mean2file, nmeans, framespermean, meantimestamps, frame2mean, frame2meanloc, nr, nc);
 		
 	}
+	
+	/**
+	 * Reads index dictionary
+	 * 
+	 * @throws IOException
+	 */
 	
 	public void readDict() throws IOException {
 		
@@ -162,6 +298,11 @@ public class UfmfFile extends RandomAccessFile {
 		}
 			
 	}
+	
+	/**
+	 * Frame index class
+	 * 
+	 */
 	
 	public class FrameIndex {
 
@@ -236,6 +377,14 @@ public class UfmfFile extends RandomAccessFile {
 				}
 		}
 		
+		/**
+		 * Reads unsigned long values little endian
+		 * 
+		 * @param buf
+		 * @param start
+		 * @return
+		 */
+		
 		private long readUnsignedLongLittleEndian(byte[] buf, int start) {
 
 			return (long)(buf[start+7] & 0xff) << 56 | (long)(buf[start+6] & 0xff) << 48 |
@@ -243,6 +392,13 @@ public class UfmfFile extends RandomAccessFile {
 					(long)(buf[start+3] & 0xff) << 24 | (long)(buf[start+2] & 0xff) << 16 |
 					(long)(buf[start+1] & 0xff) <<  8 | (long)(buf[start] & 0xff);
 				}
+		
+		/**
+		 * Translates encoded data type to Java data type
+		 * 
+		 * @param dtype
+		 * @return String array containing two elements: data type and bytes per pixel
+		 */
 
 		private String[] dtypechar2javaclass(char dtype) {
 		
@@ -307,6 +463,10 @@ public class UfmfFile extends RandomAccessFile {
 		
 	}
 	
+	/**
+	 * Keyframe index class
+	 */
+	
 	public class KeyFrameIndex {
 
 		private String DICT_START_CHAR = "d";
@@ -350,274 +510,117 @@ public class UfmfFile extends RandomAccessFile {
 		}
 	}
 	
-	public MeanFrame readMean(UfmfHeader header, int i) throws IOException{
+	/**
+	 * Returns Stack containing queried frame
+	 * 
+	 * @param frameNumber
+	 * @return CommonBackgroundStack containing queried frame
+	 */
+	
+	public CommonBackgroundStack getStackForFrame (int frameNumber) {
 		
-		MeanFrame meanframe = new MeanFrame(header, i);
-		return meanframe;
+		if (frameNumber <0 || frameNumber > getNumFrames()) {
+			IJ.showMessage("UfmfReader", "FrameIndexError; UfmfFile");
+			return null;
+		}
+		
+		//find correct imageStackLocator
+		ImageStackLocator isl = findStackLocForFrame(frameNumber);
+		
+		//read stack from file
+		CommonBackgroundStack stack = null;
+		try {
+			stack = new CommonBackgroundStack(isl, this);
+			
+		} catch (IOException e) {
+			IJ.showMessage("UfmfReader",
+		"Getting Stack for Frame was unsuccessful in MmfFile.\n\n Error: " +e);
+			return null;
+		}
+		return stack;
 		
 	}
 	
-	public MeanFrame[] readAllMeans(UfmfHeader header) throws IOException{
-		int maxnmeanscached = 5;
-		int nmeanscached = Math.min(maxnmeanscached, header.nmeans);
-		MeanFrame[] allMeanFrames = new MeanFrame[header.nmeans];
-		
-		for (int i = 0; i < header.nmeans; i++){
-			
-			allMeanFrames[i] = new MeanFrame(header, i);
-			
-			if (i == 0) {
-				header.nr = allMeanFrames[i].sz[0];
-				header.nc = allMeanFrames[i].sz[1];
-			}
-
-		}
-		return allMeanFrames;
-	}
-
-	public class MeanFrame {
-		
-		public int meani;
-		public int framei;
-		public boolean dopermute;
-		public float[][] img;
-		public int[] sz = {0,0};
-		public double timestamp;
-		public String Name;
-		
-		public MeanFrame(UfmfHeader header, int i) throws IOException {
-			
-			this.Name = "MeanFrame" + String.valueOf(i);
-			this.getImage(i);
+	/**
+	 * Retrieve ImageStackLocator with location and other info about stack containing
+	 *   queried frame
+	 * 
+	 * @param frameNumber	queried frame 
+	 * @return ImageStackLocator containing frame
+	 */
+	
+	private ImageStackLocator findStackLocForFrame(int frameNumber) {
+		if (frameNumber<0 || frameNumber>=getNumFrames()) {
+			return null;
 		}
 		
-		byte[] meanbuf = new byte[24];
-		
-		public void getImage(int i) throws IOException{
-
-			seek(header.mean2file[i]);
-			
-			int KEYFRAME_CHUNK = 0;
-			String MEAN_KEYFRAME_TYPE = "mean";
-			
-			int chunktype = read();
-			
-			if (chunktype != KEYFRAME_CHUNK){
-				System.err.println("Expecting keyframe chunk");
-				return;
-			}
-			
-			int l = read();
-			
-			read(meanbuf,0,l);
-			
-			String keyframetype = new String(meanbuf,"UTF-8");
-			if (!keyframetype.trim().equals(MEAN_KEYFRAME_TYPE)) {
-				System.err.printf("Expected keyframetype %s at start of mean keyframe");
-				return;
-			}
-
-			String datatype = Character.toString((char)read());
-			String[] javaclass = {null,null};
-			
-			if (datatype.trim().equals("f")) {
-				javaclass[0] = "float";
-				javaclass[1] = "1";
-			}
-			else {
-				System.err.println("Unexpected image datatype");
-				return;
-			}
-			
-			sz[0] = readShort();
-			sz[1] = readShort();
-
-			
-			int height = sz[0];
-			int width = sz[1];
-			this.img = new float[height*header.bytes_per_pixel][width*header.bytes_per_pixel];
-			
-			timestamp = readDouble();
-			
-			int row = 0;
-			int col = 0;
-			
-			for (int j = 0; j < (height*width*header.bytes_per_pixel-1); j++){
-				
-				this.img[row][col] = readFloat();
-				col+=1;
-				if (col == width){
-					row+=1;
-					col=0;
-				}
-				
+		ImageStackLocator isl;
+		for (int i=0; i<stackLocations.size(); i++){
+			isl = stackLocations.get(i);
+			if (isl.getStartFrame()<=frameNumber && isl.getLastFrame()>=frameNumber){
+				return isl;
 			}
 		}
+		int[] startFrames = new int[stackLocations.size()];
+		int[] endFrames = new int[stackLocations.size()];
+		
+		String msg = "frame: " + frameNumber + " not found in startFrames: " + startFrames + " - end frames - " + endFrames;
+		IJ.showMessage("mmfReader",msg);
+		return null;
+		
 	}
 	
-	public class Frame {
-		
-		public int nboxes = 0;
-		private int ncolors;
-		private int maxh;
-		private int maxw;
-		private int framei;
-		public float[][] img;
-		MeanFrame meanframe;
-		private int FRAME_CHUNK = 1;
-		public double timestamp;
-		private int[] data;
-		
-		public Frame(UfmfHeader header, int i, MeanFrame[] MeanFrame) throws IOException {
-			
-			this.ncolors = header.ncolors;
-			this.maxh = header.max_height;
-			this.maxw = header.max_width;
-			this.framei = i;
-			this.readFrame(header, MeanFrame);
-		}
-		
-		public void readFrame(UfmfHeader header, MeanFrame[] MeanFrame) throws IOException {
-			
-			int meani = header.frame2mean[this.framei];
-			meanframe = MeanFrame[meani];
-			
-			img = meanframe.img;
-			
-			seek(header.frame2file[framei]);
-			
-			int chunktype = read();
-			
-			if (chunktype != FRAME_CHUNK) {
-				System.err.println("Expecting frame chunk");
-				return;
-			}
-			
-			timestamp = readDouble();
-			
-			
-			byte[] nboxesbuf = new byte[4];
-			
-			if (header.ver == 4) {
-				
-				read(nboxesbuf,0,4);
-				nboxes = (nboxesbuf[0] & 0xFF) + ((nboxesbuf[1] & 0xFF)<<8) + ((nboxesbuf[2] & 0xFF)<<16) + ((nboxesbuf[3] & 0xFF)<<24);
-			}
-			
-			else if (header.ver == 2){
-				nboxes = readShort();
-			}
-			
-			if (!header.dataclass.trim().equals("uint8")) {	
-				System.err.printf("Unexpected datatype %s.", header.dataclass);
-			}
-			if (header.isfixedsize == 1) {
-				int[][] bb = new int[nboxes][2];
-				
-				for (int col2 = 0; col2<nboxes; col2++) {
-					
-					bb[col2][1] = read();
-					
-				}
-				for (int col1 = 0; col1<nboxes; col1++) {
-				
-					bb[col1][0] = read();
-				
-				}
-			
-				data = new int[nboxes*header.max_width*header.max_height*header.bytes_per_pixel];
-			
-				for (int i = 0; i < data.length; i++) {
-				
-					data[i] = read() & 0xFF;
-				
-				}
-				
-			}
- 			
-			else {
-				
-				int[] bb = new int[nboxes*4];
-				int[] data = new int[nboxes*header.max_width*header.max_height*header.bytes_per_pixel];
-				
-				if (framei+1 == header.nframes) {
-					int idx = 0;
-					for (int i = 0; i < nboxes; i++) {
-						
-						skipBytes(4);
-						
-						int height = (int) readShort();
-						int width = (int) readShort();
-						
-						
-						for (int j = idx; j < idx+width*height*header.bytes_per_pixel; j++) {
-							data[j] = read() & 0xFF;
-						}
-						
-						idx = idx+width*height*header.bytes_per_pixel;
-						
-						//TO DO: Reshape databuf
-					}
-					
-					
-				}
-				
-				else {
-
-					//total number of bytes in frame
-					
-					int nbytes = (int) (header.frame2file[framei+1]-header.frame2file[framei]+1);
-					byte[] cache = new byte[nbytes];
-					//unsigned cache
-					int[] ucache = new int[nbytes];
-					
-					read(cache,0,nbytes*header.bytes_per_pixel);
-					for (int u = 0; u < cache.length; u++) {
-						
-						ucache[u] = cache[u] & 0xFF;
-					}
-										
-					int cacheidx = 0;
-					int width = 0;
-					int height = 0;
-					
-					for (int i = 0; i < nboxes; i++) {
-						System.out.println(nboxes);
-						
-						int[] tmp = Arrays.copyOfRange(ucache, cacheidx, cacheidx+8);
-						
-						for (int j = 0; j < 4; j++) {
-							
-							bb[4*i+j] = tmp[2*j] + 256*tmp[2*j+1];
-						}
-						
-						width = bb[4*i+3]; height = bb[4*i+2];
-						int k = cacheidx;
-						
-						for (int w = bb[4*i+1]-1; w < bb[4*i+1]+width-1; w++) {
-							for (int h = bb[4*i]-1; h < bb[4*i]+height-1; h++ ) {
-													
-								img[w][h] = ucache[k+8];
-								
-								k++;
-									
-								}
-							}	
-						cacheidx=cacheidx+8+width*height*header.bytes_per_pixel;
-					}
-				}
-				
-			}
-			
-	}
-		
-
+	/**
+	 * 
+	 * 
+	 * @param bak
+	 * @param backgroundFileInfo
+	 * @return
+	 * @throws IOException
+	 */
 	
+	BackgroundRemovedImage readBRI(ImageProcessor bak, FileInfo backgroundFileInfo) throws IOException {
+		
+		BackgroundRemovedImageHeader h = new BackgroundRemovedImageHeader(this);
+		BackgroundRemovedImage bri = new BackgroundRemovedImage(h, bak);
+		for (int j = 0; j<h.getNumimgs(); j++) {
+			bri.addSubImage(readBRISubIm(bak, backgroundFileInfo));
+		}
+		return bri;
+	}
+	
+	private BRISubImage readBRISubIm(ImageProcessor bak, FileInfo backgroundFileInfo) throws IOException {
+		Rectangle r = new Rectangle();
+		
+		r.x = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
+		r.y = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
+		r.width = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
+		r.height = (readByte() & 0xFF) + 256*(readByte() & 0xFF);
+		
+		FileInfo fi = (FileInfo) backgroundFileInfo.clone();
+		
+		fi.width = r.width;
+		fi.height = r.height;
+		byte buf[] = new byte[fi.width*fi.height*header.bytes_per_pixel];
+		
+		float[] ubuf = readByteToUnsignedFloat(buf);
+		
+		FloatProcessor ip = new FloatProcessor(r.width, r.height, ubuf);
+		
+		
+		return new BRISubImage(ip,r);
+		
+	}
+
+	private float[] readByteToUnsignedFloat(byte[] buf) throws IOException {
+		
+		float[] ubuf = new float[buf.length];
+		read(buf);
+		for(int i=0; i<buf.length; i++) {
+			ubuf[i] = buf[i] & 0xFF;
+			}
+		return ubuf;
+		
+	}
 }
-	public Frame getFrame(UfmfHeader header, int i, MeanFrame[] MeanFrames) throws IOException{
-		System.out.println(i);
-		Frame frame = new Frame(header, i, MeanFrames);
-		return frame;
-	}
 
-}	
