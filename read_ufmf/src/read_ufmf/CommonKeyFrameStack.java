@@ -9,7 +9,8 @@ import ij.process.ImageProcessor;
 /**
  * Stack of KeyFrame image and associated Frame images
  * 
- * @author edwardsa
+ * @author Austin Edwards
+ * @version 1.0
  * @see ImageStackLocator
  * @see FrameImage
  *

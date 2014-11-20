@@ -9,7 +9,8 @@ import java.io.IOException;
  * Index object for frame
  * 
  * @author Austin Edwards
- *
+ * @version 1.0
+ * 
  */
 public class FrameIndex {
 

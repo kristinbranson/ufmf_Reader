@@ -9,6 +9,7 @@ import read_ufmf.ImageStackHeader;
  * @author Austin Edwards
  * @version 1.0
  * @see ImageStackHeader
+ * 
  */
 public class ImageStackLocator extends ImageStackHeader {
 

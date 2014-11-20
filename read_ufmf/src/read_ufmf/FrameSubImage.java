@@ -9,7 +9,8 @@ import ij.process.ImageProcessor;
  * Subimage with associated coordinates within frame
  * 
  * @author Austin Edwards
- *
+ * @version 1.0
+ * 
  */
 public class FrameSubImage {
 

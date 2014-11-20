@@ -9,7 +9,6 @@ import ij.process.*;
  * 
  * @author Austin Edwards
  * @version 1.0
- * 
  * @see VirtualStack
  * @see UfmfFile
  * @see CommonKeyFrameStack
@@ -116,6 +115,17 @@ public class UfmfVirtualStack extends VirtualStack {
 	}
 	
 	/**
+	 * Returns directory containing UFMF file
+	 * 
+	 * @return String of directory containing file
+	 */
+	public String getDirectory(){
+		return fileDir;
+	}
+	
+	/**
+	 * Returns ImageProcessor for given frame number
+	 * Overrides method in ImageStack
 	 * 
 	 * @return ImageProcessor
 	 */
@@ -126,6 +136,7 @@ public class UfmfVirtualStack extends VirtualStack {
 			return null;
 		}
 		
+		// Checks to see if frame is in current stack
 		if (!currentStack.containsFrame(frameNumber)) {
 			currentStack = raf.getStackForFrame(frameNumber);
 		}
@@ -137,10 +148,20 @@ public class UfmfVirtualStack extends VirtualStack {
 		
 	}
 	
+	/**
+	 * Returns number of frames in UFMF file
+	 * 
+	 * @return integer of frames in UFMF file
+	 */
 	public int getSize() {
 		return raf.getNumFrames();
 	}
 	
+	/**
+	 * Returns frame label
+	 * 
+	 * @return String frame label
+	 */
 	public String getSliceLabel(int n){
 		String label = getFileName() + "_Frame_"+n;
 		return label;
@@ -153,14 +174,29 @@ public class UfmfVirtualStack extends VirtualStack {
 		return;
 	}
 
+	/**
+	 * Returns ImagePlus object
+	 * 
+	 * @return returns ImagePlus
+	 */
 	public ImagePlus getImagePlus() {
 		return imp;
 	}
 
+	/**
+	 * Sets ImagePlus value of current instance of UFMFVirtualStack to current ImagePlus value
+	 * 
+	 * @param imp	ImagePlus
+	 */
 	public void setImagePlus(ImagePlus imp) {
 		this.imp = imp;
 	}
 
+	/**
+	 * Returns true if UFMF file is null, false otherwise
+	 * 
+	 * @return true if UFMF file is null
+	 */
 	public boolean fileIsNull() {
 		if (raf == null || raf.getNumFrames()==0 || getProcessor(1)==null){
 			IJ.showMessage("UfmfVirtualStack","Error: Frames missing or empty");

@@ -18,6 +18,7 @@ import ucar.unidata.io.RandomAccessFile;
  * 
  * 
  * @author Austin Edwards
+ * @version 1.0
  * @see RandomAccessFile
  * @see ImageStackLocator
  * 
