@@ -254,7 +254,6 @@ public class UfmfFile extends RandomAccessFile {
 			frame2meanloc[j] = mean2file[frame2mean[j]];
 		}
 		
-		
 		return new UfmfHeader(pos, s.toString(), ver, indexloc, max_height, max_width, isfixedsize,
 			coding, ncolors, bytes_per_pixel, dataclass, frame2file, nframes, timestamps,
 			mean2file, nmeans, framespermean, meantimestamps, frame2mean, frame2meanloc, nr, nc);
@@ -278,11 +277,9 @@ public class UfmfFile extends RandomAccessFile {
 			}
 		
 		int nkeys = read();
-		
-		for (int j = 0; j < nkeys; j++) {
+		for (int j = 0; j < nkeys; j++) {			
 			
-			
-			int l = read();
+			int l = readShort();
 
 			StringBuilder keySB = new StringBuilder();
 			
@@ -293,7 +290,6 @@ public class UfmfFile extends RandomAccessFile {
 			}
 			
 			String key = keySB.toString();
-			
 			//read chunktype
 			chunktype = Character.toString((char)read());
 			
