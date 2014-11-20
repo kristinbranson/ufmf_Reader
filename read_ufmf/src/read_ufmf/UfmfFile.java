@@ -163,12 +163,26 @@ public class UfmfFile extends RandomAccessFile {
 			s.append(c); // should spell 'ufmf'
 		}
 		
+		if (!s.toString().toLowerCase().equals("ufmf")) {
+			IJ.showMessage("Invalid UFMF file: first four bytes must be 'ufmf'.");
+		}
+		
 		int ver = readInt();
+		
+		if (ver < 2 || ver > 4) {
+			IJ.showMessage("Only UFMF versions 2-4 are supported: ");
+			return null;
+		}
+		
 		long indexloc = readLong();
 		int max_height = readShort();
 		int max_width = readShort();
 		
-		int isfixedsize = read();
+		int isfixedsize = 0;
+		
+		if (ver >= 4) {
+			isfixedsize = read();
+		}
 		
 		int l = read();
 		
@@ -192,6 +206,8 @@ public class UfmfFile extends RandomAccessFile {
 			ncolors = 3;
 			bytes_per_pixel = 3;
 		}
+		
+		String dataclass = "uint8";
 
 		skipBytes(indexloc-getFilePointer());
 		
@@ -240,7 +256,7 @@ public class UfmfFile extends RandomAccessFile {
 		
 		
 		return new UfmfHeader(pos, s.toString(), ver, indexloc, max_height, max_width, isfixedsize,
-			coding, ncolors, bytes_per_pixel, frame2file, nframes, timestamps,
+			coding, ncolors, bytes_per_pixel, dataclass, frame2file, nframes, timestamps,
 			mean2file, nmeans, framespermean, meantimestamps, frame2mean, frame2meanloc, nr, nc);
 		
 	}
@@ -258,21 +274,25 @@ public class UfmfFile extends RandomAccessFile {
 		String chunktype = Character.toString((char)read());
 		
 		if (!chunktype.equals(DICT_START_CHAR)){
-			System.out.printf("Error reading index: dictionary does not start with '%s'.", DICT_START_CHAR);
+			IJ.showMessage("Error reading index: dictionary does not start with "+DICT_START_CHAR+".");
 			}
 		
 		int nkeys = read();
 		
 		for (int j = 0; j < nkeys; j++) {
 			
-			byte[] buf = new byte[12];
 			
-			//read length of key
 			int l = read();
+
+			StringBuilder keySB = new StringBuilder();
 			
-			//read key
-			read(buf,0,l+1);
-			String key = new String(buf,"UTF-8");
+			char c;
+			for (int i = 0; i < l; i++) {
+				c = (char) readUnsignedByte();
+				keySB.append(c);
+			}
+			
+			String key = keySB.toString();
 			
 			//read chunktype
 			chunktype = Character.toString((char)read());

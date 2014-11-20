@@ -27,7 +27,7 @@ class UfmfHeader {
 	public int ncolors;
 	public int bytes_per_pixel;
 	
-	public String dataclass = "uint8";
+	public String dataclass;
 	
 	public long[] frame2file;
 	public int nframes;
@@ -51,7 +51,7 @@ class UfmfHeader {
 	public String movie;
 	
 	public UfmfHeader(long pos, String s, int ver, long indexloc, int max_height, int max_width, int isfixedsize,
-			String coding, int ncolors, int bytes_per_pixel, long[] frame2file, int nframes,
+			String coding, int ncolors, int bytes_per_pixel, String dataclass, long[] frame2file, int nframes,
 			double[] timestamps, long[] mean2file, int nmeans, int[] framespermean, double[] meantimestamps, int[] frame2mean,
 			long[] frame2meanloc, int nr, int nc) {
 		super();
@@ -66,6 +66,7 @@ class UfmfHeader {
 		this.coding = coding;
 		this.ncolors = ncolors;
 		this.bytes_per_pixel = bytes_per_pixel;
+		this.dataclass = dataclass;
 		
 		this.frame2file = frame2file;
 		this.nframes = nframes;
