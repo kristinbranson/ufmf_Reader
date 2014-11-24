@@ -35,23 +35,26 @@ public class FrameImageHeader {
 	 */
 	private double timestamp;
 	
-	public FrameImageHeader(RandomAccessFile raf) throws IOException {
+	public FrameImageHeader(RandomAccessFile raf, UfmfHeader h, int framei) throws IOException {
 		
 		pos = raf.getFilePointer();
-		chunktype = raf.read();
+		if (pos < h.frame2file[framei]) {
+			raf.skipBytes((int) (h.frame2file[framei]-pos));
+		}
 		
+		chunktype = raf.read();
 		if (chunktype != 1) {
-			// need to change this to imageJ error
 			System.err.println("Expecting frame chunk");
 			return;
 		}
 		
 		timestamp = raf.readDouble();
 		
-		byte[] numimgsbuf = new byte[4];
-		raf.read(numimgsbuf,0,4);
-		numsubimgs = (numimgsbuf[0] & 0xFF) + ((numimgsbuf[1] & 0xFF)<<8) + ((numimgsbuf[2] & 0xFF)<<16) + ((numimgsbuf[3] & 0xFF)<<24);
-		
+		if (h.ver == 4) {
+			byte[] numimgsbuf = new byte[4];
+			raf.read(numimgsbuf,0,4);
+			numsubimgs = (numimgsbuf[0] & 0xFF) + ((numimgsbuf[1] & 0xFF)<<8) + ((numimgsbuf[2] & 0xFF)<<16) + ((numimgsbuf[3] & 0xFF)<<24);
+		}
 	}
 	
 	public int getNumimgs() {

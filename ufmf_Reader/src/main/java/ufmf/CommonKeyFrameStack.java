@@ -45,7 +45,7 @@ public class CommonKeyFrameStack {
 	 * @param f				UFMF file
 	 * @throws IOException
 	 */
-	public CommonKeyFrameStack(ImageStackLocator isl, UfmfFile f) throws IOException {
+	public CommonKeyFrameStack(ImageStackLocator isl, UfmfFile f, UfmfHeader ufmfh) throws IOException {
 		frameimage = new ArrayList<FrameImage>();
 		try {
 			h = (ImageStackLocator) isl.clone();
@@ -56,10 +56,10 @@ public class CommonKeyFrameStack {
 		f.seek(isl.loc);
 		IplImageHeader iph = new IplImageHeader(f);
 		fi = iph.getFileInfo();
-		keyframeIm = iph.getImageData(f);
+		keyframeIm = iph.getImageData(f, ufmfh);
 		
 		for (int j = 0; j < h.nframes; j++) {
-			frameimage.add(f.readFrameImage(keyframeIm, fi));
+			frameimage.add(f.readFrameImage(keyframeIm, fi, ufmfh, j));
 		}
 	}
 	

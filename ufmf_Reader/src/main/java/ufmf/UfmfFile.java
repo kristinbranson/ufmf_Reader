@@ -2,10 +2,13 @@ package ufmf;
 
 import ij.IJ;
 import ij.io.FileInfo;
+import ij.io.ImageReader;
+import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 
 import java.awt.Rectangle;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -194,7 +197,7 @@ public class UfmfFile extends RandomAccessFile {
 		}
 		
 		String coding = codingStringBuilder.toString().toLowerCase();
-		
+
 		int ncolors = 0;
 		int bytes_per_pixel = 0; 
 		
@@ -290,6 +293,7 @@ public class UfmfFile extends RandomAccessFile {
 			}
 			
 			String key = keySB.toString();
+			
 			//read chunktype
 			chunktype = Character.toString((char)read());
 			
@@ -328,13 +332,14 @@ public class UfmfFile extends RandomAccessFile {
 		//read stack from file
 		CommonKeyFrameStack stack = null;
 		try {
-			stack = new CommonKeyFrameStack(isl, this);
+			stack = new CommonKeyFrameStack(isl, this, header);
 			
 		} catch (IOException e) {
 			IJ.showMessage("UfmfReader",
 		"Getting Stack for Frame was unsuccessful in MmfFile.\n\n Error: " +e);
 			return null;
 		}
+		
 		return stack;
 		
 	}
@@ -350,7 +355,6 @@ public class UfmfFile extends RandomAccessFile {
 		if (frameNumber<0 || frameNumber>=getNumFrames()) {
 			return null;
 		}
-		
 		ImageStackLocator isl;
 		for (int i=0; i<stackLocations.size(); i++){
 			isl = stackLocations.get(i);
@@ -376,10 +380,12 @@ public class UfmfFile extends RandomAccessFile {
 	 * @throws IOException
 	 */
 	
-	FrameImage readFrameImage(ImageProcessor frameImage, FileInfo frameFileInfo) throws IOException {
+	FrameImage readFrameImage(ImageProcessor frameImage,
+			FileInfo frameFileInfo, UfmfHeader ufmfh, int framei) throws IOException {
 		
-		FrameImageHeader h = new FrameImageHeader(this);
+		FrameImageHeader h = new FrameImageHeader(this, ufmfh, framei);
 		FrameImage frameimage = new FrameImage(h, frameImage);
+		
 		for (int j = 0; j<h.getNumimgs(); j++) {
 			frameimage.addSubImage(readFrameSubIm(frameImage, frameFileInfo));
 		}
@@ -410,14 +416,25 @@ public class UfmfFile extends RandomAccessFile {
 		
 		fi.width = r.width;
 		fi.height = r.height;
+		
 		byte buf[] = new byte[fi.width*fi.height*header.bytes_per_pixel];
 		
-		float[] ubuf = readByteToUnsignedFloat(buf);
+		switch (fi.fileType) {
 		
-		FloatProcessor ip = new FloatProcessor(r.width, r.height, ubuf);
-		
-		return new FrameSubImage(ip,r);
-		
+		case FileInfo.GRAY32_FLOAT:
+			float[] ubuf = readByteToUnsignedFloat(buf);
+			FloatProcessor ip = new FloatProcessor(r.width, r.height, ubuf);
+			return new FrameSubImage(ip,r);
+		case FileInfo.GRAY8:
+			ImageReader ir = new ImageReader(fi);
+			read(buf);
+			ByteArrayInputStream bis = new ByteArrayInputStream(buf);
+	    	Object pixels = ir.readPixels(bis);
+	    	ByteProcessor bp = new ByteProcessor(fi.width, fi.height, (byte[]) pixels);
+	    	return new FrameSubImage(bp,r);
+		default:
+			return null;
+		}
 	}
 
 	/**
