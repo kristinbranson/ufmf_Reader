@@ -126,6 +126,9 @@ public class IplImageHeader {
 		else if(javaclass[0].equals("uint16")) {
 			fi.fileType = FileInfo.GRAY16_UNSIGNED;
 		}
+		else {
+			throw new IOException("unhandled image type: " + javaclass[0]);
+		}
 		
 		return fi;
 		
