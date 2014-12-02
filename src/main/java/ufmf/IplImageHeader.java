@@ -3,8 +3,10 @@ package main.java.ufmf;
 import ij.io.FileInfo;
 import ij.io.ImageReader;
 import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -140,19 +142,27 @@ public class IplImageHeader {
 		switch (fi.fileType) {
 		
 		case FileInfo.GRAY8:
-			byte bytebuf[] = new byte[nbytes];
+			byte[] bytebuf = new byte[nbytes];
 			raf.read(bytebuf);
 	    	ByteArrayInputStream bis = new ByteArrayInputStream(bytebuf);
 	    	Object pixels = ir.readPixels(bis);
 	    	return new ByteProcessor(fi.width, fi.height, (byte[]) pixels);
 	    	
 		case FileInfo.GRAY32_FLOAT:
-			float[] buf = new float[nbytes];
-			raf.readFloat(buf,0,nbytes);
-			return new FloatProcessor(fi.width, fi.height, (float []) buf);
+			float[] floatbuf = new float[nbytes];
+			raf.readFloat(floatbuf,0,nbytes);
+			return new FloatProcessor(fi.width, fi.height, (float []) floatbuf);
 		
-		
+		case FileInfo.GRAY16_UNSIGNED:
+			short[] shortbuf = new short[nbytes];
+			raf.readShort(shortbuf, 0, nbytes);
+    		return new ShortProcessor(fi.width, fi.height, (short[]) shortbuf, null);
 	    
+		case FileInfo.RGB:
+			int[] colorbuf = new int[nbytes];
+			raf.readInt(colorbuf, 0, nbytes);
+	    	return new ColorProcessor(fi.width, fi.height, (int[]) colorbuf);
+    		
 	    default:
 	    	throw new IOException("unhandled data type: " + fi.toString());
 		}
