@@ -62,6 +62,8 @@ public class IplImageHeader {
 	 */
 	private double timestamp;
 	
+	private int colors;
+	
 	/**
 	 * Creates IplImageHeader from the UFMF file at the current file pointer location
 	 * 
@@ -121,6 +123,9 @@ public class IplImageHeader {
 		else if(javaclass[0].equals("uint8")) {
 			fi.fileType = FileInfo.GRAY8;
 		}
+		else if(javaclass[0].equals("uint16")) {
+			fi.fileType = FileInfo.GRAY16_UNSIGNED;
+		}
 		
 		return fi;
 		
@@ -138,6 +143,10 @@ public class IplImageHeader {
 		FileInfo fi = getFileInfo();
 		ImageReader ir = new ImageReader(fi);
 		int nbytes = fi.width*fi.height*header.bytes_per_pixel;
+		
+		if (header.ncolors == 3) {
+			fi.fileType = FileInfo.RGB;
+		}
 		
 		switch (fi.fileType) {
 		
