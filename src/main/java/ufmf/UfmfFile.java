@@ -425,15 +425,13 @@ public class UfmfFile extends RandomAccessFile {
 			float[] ubuf = readByteToUnsignedFloat(buf);
 			FloatProcessor ip = new FloatProcessor(r.width, r.height, ubuf);
 			return new FrameSubImage(ip,r);
-		case FileInfo.GRAY8:
+		default:
 			ImageReader ir = new ImageReader(fi);
 			read(buf);
 			ByteArrayInputStream bis = new ByteArrayInputStream(buf);
 	    	Object pixels = ir.readPixels(bis);
 	    	ByteProcessor bp = new ByteProcessor(fi.width, fi.height, (byte[]) pixels);
 	    	return new FrameSubImage(bp,r);
-		default:
-			return null;
 		}
 	}
 
