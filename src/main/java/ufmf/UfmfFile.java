@@ -252,9 +252,14 @@ public class UfmfFile extends RandomAccessFile {
 					frame2mean[j] = i;
 					framespermean[i]++;
 				}
-				
+			}
+			
+			if (timestamps[j] >= meantimestamps[nmeans-1]) {	
+				frame2mean[j] = nmeans-1;
+				framespermean[nmeans-1]++;
 			}
 			frame2meanloc[j] = mean2file[frame2mean[j]];
+			
 		}
 		
 		return new UfmfHeader(pos, s.toString(), ver, indexloc, max_height, max_width, isfixedsize,
