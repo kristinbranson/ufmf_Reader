@@ -86,6 +86,7 @@ public class UfmfFile extends RandomAccessFile {
 	 * @throws IOException
 	 */
 	public void parse() throws IOException {
+
 		stackLocations = new ArrayList<ImageStackLocator>();
 		seek(0);
 		header = readFileHeader();
@@ -157,6 +158,7 @@ public class UfmfFile extends RandomAccessFile {
 	 */
 	
 	public UfmfHeader readFileHeader() throws IOException{
+
 		long pos = getFilePointer();
 		StringBuilder s = new StringBuilder();
 		char c;
@@ -197,7 +199,6 @@ public class UfmfFile extends RandomAccessFile {
 		}
 		
 		String coding = codingStringBuilder.toString().toLowerCase();
-
 		int ncolors = 0;
 		int bytes_per_pixel = 0; 
 		
@@ -211,9 +212,8 @@ public class UfmfFile extends RandomAccessFile {
 		}
 		
 		String dataclass = "uint8";
-
-		skipBytes((int) (indexloc-getFilePointer()));
 		
+		skipLongBytes(indexloc-getFilePointer());
 		readDict();
 		
 		long[] frame2file;
@@ -455,6 +455,29 @@ public class UfmfFile extends RandomAccessFile {
 			ubuf[i] = buf[i] & 0xFF;
 			}
 		return ubuf;
+		
+	}
+	
+	private long skipLongBytes(long n) throws IOException {
+		
+		long pos;
+		long len;
+		long newpos;
+		
+		if (n <= 0) {
+			return 0;
+		}
+		pos = getFilePointer();
+		len = length();
+		newpos = pos + n;
+		
+		if (newpos > len) {
+			newpos = len;
+		}
+		
+		seek(newpos);
+		
+		return (newpos - pos);
 		
 	}
 }
